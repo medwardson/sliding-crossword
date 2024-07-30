@@ -1,0 +1,8 @@
+1. build script/algo that will generate our puzzle
+    - I was thinking, for our hints for the words, we can try to use openAI to eenerate them in the script
+2. setup a database, and locally point to it and get the data ingested properly
+3. setup a server, and then schedule the job on a recurring daily basis
+4. setup an endpoint on our server to fetch from the database
+5. make a figma to design our thing
+6. build UI with whatever framework
+7. profit
