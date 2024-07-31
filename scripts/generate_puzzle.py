@@ -17,7 +17,10 @@ import argparse
 import csv
 import random
 import time
-import os
+import firebase_admin
+from firebase_admin import firestore
+from firebase_admin import credentials
+
 
 
 LOG_DETAILS = False
@@ -46,12 +49,12 @@ def GetWorkingWords(freq_csv_file, scrabble_words_file, top_n, word_len):
     """
 
     scrabble_set = set()
-    print (os.getcwd())
+    # print (os.getcwd())
 
     with open(scrabble_words_file, 'r') as f:
         for line in f:
             scrabble_set.add(line.lower().strip())
-    print("Found %d scrabble words" % (len(scrabble_set)))
+    # print("Found %d scrabble words" % (len(scrabble_set)))
 
     working_words = []
     with open(freq_csv_file, newline='') as csvfile:
@@ -66,16 +69,16 @@ def GetWorkingWords(freq_csv_file, scrabble_words_file, top_n, word_len):
                 if len(working_words) >= top_n:
                     break
 
-    print("Picked the top %d scrabble words. Here's some of the top/bottom ones:" %
-          (len(working_words)))
+    # print("Picked the top %d scrabble words. Here's some of the top/bottom ones:" %
+    #       (len(working_words)))
 
-    for word in working_words[0:10]:
-        print("  " + word)
-    print("...")
-    for word in working_words[-10:]:
-        print("  " + word)
+    # for word in working_words[0:10]:
+    #     print("  " + word)
+    # print("...")
+    # for word in working_words[-10:]:
+    #     print("  " + word)
 
-    print("")
+    # print("")
 
     return working_words
 
@@ -296,30 +299,25 @@ def DoSomeBenchmarking(working_words, word_trie):
             pos = 0
 
     dur = time.time() - start_time
-    print("Ran %d squares in %.1f sec, or %.0f squares/sec" % (squares, dur,
-          squares / dur))
+    # print("Ran %d squares in %.1f sec, or %.0f squares/sec" % (squares, dur,
+    #       squares / dur))
+
+def IsWordInTrie(word, trie):
+    copied_trie = trie
+    for i in range(len(word)):
+        if word[i] in copied_trie:
+            copied_trie = copied_trie[word[i]]
+        else:
+            return False
+
+    return copied_trie == True
 
 def RemoveLastOrDelete(square, word_trie):
     square[-1] = square[-1][:-1]
 
-    copied_trie = word_trie
-    for i in range(len(square)-1):
-        if square[-1][i] in copied_trie:
-            copied_trie = copied_trie[square[-1][i]]
+    vertical_word = "".join([word[-1] for word in square[:-1]])
 
-    if copied_trie != True:
-        return []
-    
-    vertical_word = ""
-    for i in range(len(square)-1):
-        vertical_word += square[i][-1]
-
-    copied_trie = word_trie
-    for i in range(len(square)-1):
-        if vertical_word[i] in copied_trie:
-            copied_trie = copied_trie[vertical_word[i]]
-
-    if copied_trie != True:
+    if not IsWordInTrie(square[-1], word_trie) or not IsWordInTrie(vertical_word, word_trie):
         return []
     
     return square
@@ -331,11 +329,11 @@ def main():
     parser = argparse.ArgumentParser()
     # Inputs
     parser.add_argument('--freq_csv_file', type=str,
-                        default='./scripts/data/unigram_freq.csv',
+                        default='./data/unigram_freq.csv',
                         help="CSV file where the first row is words, "
                         "sorted in most popular first")
     parser.add_argument('--scrabble_words_file', type=str,
-                        default='./scripts/data/scrabble_words.txt',
+                        default='./data/scrabble_words.txt',
                         help="Text file of valid words to use")
 
     # Knobs
@@ -355,6 +353,7 @@ def main():
 
     working_words = GetWorkingWords(args.freq_csv_file, args.scrabble_words_file,
                                     args.top_n, args.word_len)
+    random.shuffle(working_words)
     
     working_words_n_1 = GetWorkingWords(args.freq_csv_file, args.scrabble_words_file,
                                     args.top_n, args.word_len-1)
@@ -376,6 +375,7 @@ def main():
 
     print("Generating Squares..\n")
     sq_num = 0
+    output = None
     for word_num, start_word in enumerate(working_words):
         for sq in GenSquares(word_trie, start_word):
             # Collect some classifications of this sq.
@@ -383,21 +383,36 @@ def main():
             words_are_unique = WordsAreUnique(sq, is_double_square)
             sq = RemoveLastOrDelete(sq, word_trie_n_1)
 
+            if sq != [] and is_double_square and not words_are_unique:
+                output = sq
+                break
 
-            if args.double_squares_only and (not is_double_square
-                                             or not words_are_unique):
-                continue
-            desc = "WordSquare %d from word %d/%d: %s-word-square, %s" % (
-                sq_num, word_num, len(working_words),
-                "double" if is_double_square else "single",
-                "unique" if words_are_unique else "non-unique")
-            print(desc)
-            for word in sq:
-                print("  " + word)
-            print("")
-            sq_num += 1
+        if not output is None:
+            break
 
-    print("Made %d squares" % sq_num)
+            # if args.double_squares_only and (not is_double_square
+            #                                  or not words_are_unique):
+            #     continue
+            # desc = "WordSquare %d from word %d/%d: %s-word-square, %s" % (
+            #     sq_num, word_num, len(working_words),
+            #     "double" if is_double_square else "single",
+            #     "unique" if words_are_unique else "non-unique")
+            # print(desc)
+            # for word in sq:
+            #     print("  " + word)
+            # print("")
+            # sq_num += 1
+
+
+    cred = credentials.Certificate('../serviceAccount.json')
+    app = firebase_admin.initialize_app()
+    db = firestore.client()
+
+    date_id = time.strftime("%Y-%m-%d")
+    print(date_id)
+    # doc_ref = db.collection("daily_puzzles").document("")
+
+    print(output)
 
 
 if __name__ == "__main__":
