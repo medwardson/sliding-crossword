@@ -329,11 +329,11 @@ def main():
     parser = argparse.ArgumentParser()
     # Inputs
     parser.add_argument('--freq_csv_file', type=str,
-                        default='./data/unigram_freq.csv',
+                        default='./scripts/data/unigram_freq.csv',
                         help="CSV file where the first row is words, "
                         "sorted in most popular first")
     parser.add_argument('--scrabble_words_file', type=str,
-                        default='./data/scrabble_words.txt',
+                        default='./scripts/data/scrabble_words.txt',
                         help="Text file of valid words to use")
 
     # Knobs
@@ -404,13 +404,16 @@ def main():
             # sq_num += 1
 
 
-    cred = credentials.Certificate('../serviceAccount.json')
-    app = firebase_admin.initialize_app()
+    date_id = time.strftime("%Y%m%d")
+    print(date_id)
+    cred = credentials.Certificate('./serviceAccount.json')
+    app = firebase_admin.initialize_app(cred)
     db = firestore.client()
 
-    date_id = time.strftime("%Y-%m-%d")
-    print(date_id)
-    # doc_ref = db.collection("daily_puzzles").document("")
+    doc_ref = db.collection("daily_puzzles").document(date_id)
+    doc_ref.set({
+        "solution": output,
+    });
 
     print(output)
 
