@@ -413,7 +413,7 @@ def main():
     doc_ref = db.collection("daily_puzzles").document(date_id)
     doc_ref.set({
         "solution": output,
-    });
+    })
 
     print(output)
 
