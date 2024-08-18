@@ -20,7 +20,7 @@ import time
 import firebase_admin
 from firebase_admin import firestore
 from firebase_admin import credentials
-
+from utils.generate_hints import generate_crossword_hints
 
 
 LOG_DETAILS = False
@@ -322,6 +322,19 @@ def RemoveLastOrDelete(square, word_trie):
     
     return square
     
+
+def GetAllWords(word_list):
+    words = word_list[:]
+    word_list[-1] += " "
+
+    for i, _ in enumerate(word_list):
+        col_word = "".join([word[i] for word in word_list])
+        words.append(col_word.rstrip())
+
+    
+    return words
+
+
 def main():
     """ Main
     """
@@ -384,25 +397,20 @@ def main():
             sq = RemoveLastOrDelete(sq, word_trie_n_1)
 
             if sq != [] and is_double_square and not words_are_unique:
-                output = sq
-                break
+                all_words = GetAllWords(sq)
+
+                if len(all_words) == len(set(all_words)):
+                    output = all_words
+                    break
 
         if not output is None:
             break
 
-            # if args.double_squares_only and (not is_double_square
-            #                                  or not words_are_unique):
-            #     continue
-            # desc = "WordSquare %d from word %d/%d: %s-word-square, %s" % (
-            #     sq_num, word_num, len(working_words),
-            #     "double" if is_double_square else "single",
-            #     "unique" if words_are_unique else "non-unique")
-            # print(desc)
-            # for word in sq:
-            #     print("  " + word)
-            # print("")
-            # sq_num += 1
+    words = output
+    hints = generate_crossword_hints(words)
 
+    print("Words: ", words)
+    print("Hints: ", hints)
 
     date_id = time.strftime("%Y%m%d")
     print(date_id)
@@ -412,10 +420,10 @@ def main():
 
     doc_ref = db.collection("daily_puzzles").document(date_id)
     doc_ref.set({
-        "solution": output,
+        "solution": words[:5],
+        "horizontal_hints": hints[:5],
+        "vertical_hints": hints[5:]
     })
-
-    print(output)
 
 
 if __name__ == "__main__":
