@@ -21,6 +21,13 @@ import firebase_admin
 from firebase_admin import firestore
 from firebase_admin import credentials
 from utils.generate_hints import generate_crossword_hints
+import os
+import sys
+
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(root_dir)
+
+from firestore_init import db
 
 
 LOG_DETAILS = False
@@ -414,9 +421,6 @@ def main():
 
     date_id = time.strftime("%Y%m%d")
     print(date_id)
-    cred = credentials.Certificate('./serviceAccount.json')
-    app = firebase_admin.initialize_app(cred)
-    db = firestore.client()
 
     doc_ref = db.collection("daily_puzzles").document(date_id)
     doc_ref.set({
